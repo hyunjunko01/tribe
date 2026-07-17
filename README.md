@@ -1,8 +1,8 @@
-# Tribe
+# tribe
 
 USDC escrow for delivery orders on [Arc](https://www.arc.network/) testnet. Tribe locks payment between a **customer** and a **store** until delivery is confirmed. Riders stay off-chain (existing web2 tools); they submit a delivery photo via a one-time link. An AI agent checks the proof, then completes or freezes the order for human review.
 
-Built with Next.js, Supabase, Circle Developer Controlled Wallets, and OpenAI. Based on Circle’s [Workflow Escrow Refund Protocol](https://github.com/akelani-circle/workflow-escrow-refund-protocol) sample.
+Built with Next.js, Supabase, Circle Developer Controlled Wallets, and OpenAI. Based on Circle’s [arc-escrow](https://github.com/circlefin/arc-escrow) sample.
 
 ## Table of Contents
 
@@ -53,7 +53,7 @@ Built with Next.js, Supabase, Circle Developer Controlled Wallets, and OpenAI. B
 ## Prerequisites
 
 - **Node.js v22+** — Install via [nvm](https://github.com/nvm-sh/nvm)
-- **Supabase CLI** — Install via `npm install -g supabase` or see [Supabase CLI docs](https://supabase.com/guides/cli/getting-started)
+- **Supabase CLI** — Install via `npm install -g supabase` or see [Supabase CLI docs](https://supabase.com/docs/guides/local-development/cli/getting-started)
 - **Docker Desktop** (only if using the local Supabase path) — [Install Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - **[ngrok](https://ngrok.com/)** — For local webhook testing
 - Circle Developer Controlled Wallets **[API key](https://console.circle.com/signin)** and **[Entity Secret](https://developers.circle.com/wallets/dev-controlled/register-entity-secret)**
@@ -178,6 +178,6 @@ This project:
 
 Tribe builds on Circle’s open-source escrow sample:
 
-- [workflow-escrow-refund-protocol](https://github.com/akelani-circle/workflow-escrow-refund-protocol)
+- [arc-escrow](https://github.com/circlefin/arc-escrow)
 
 Licensed under the Apache License, Version 2.0 where applicable for upstream code.
