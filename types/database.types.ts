@@ -80,6 +80,36 @@ export interface EscrowAgreement {
   transaction?: Transaction;
 }
 
+export type OrderStatus =
+  | "PENDING_PAYMENT"
+  | "PAID"
+  | "ADMITTED"
+  | "IN_DELIVERY"
+  | "COMPLETED"
+  | "DISPUTED"
+  | "CANCELLED";
+
+export interface Order {
+  id: string;
+  customer_profile_id: string;
+  store_profile_id: string;
+  escrow_agreement_id: string | null;
+  amount: number;
+  currency: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    unit_price?: string;
+    notes?: string;
+  }>;
+  delivery_address: string;
+  status: OrderStatus;
+  delivery_token: string | null;
+  delivery_proof_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -102,6 +132,18 @@ export type Database = {
         Row: EscrowAgreement;
         Insert: Omit<EscrowAgreement, 'created_at' | 'updated_at'>;
         Update: Partial<Omit<EscrowAgreement, 'created_at' | 'updated_at'>>;
+      };
+      orders: {
+        Row: Order;
+        Insert: Omit<Order, 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          status?: OrderStatus;
+          currency?: string;
+          escrow_agreement_id?: string | null;
+          delivery_token?: string | null;
+          delivery_proof_url?: string | null;
+        };
+        Update: Partial<Omit<Order, 'id' | 'created_at' | 'updated_at'>>;
       };
     };
   };

@@ -19,6 +19,7 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server-client";
+import { createOrderPaymentService } from "@/app/services/order-payment.service";
 
 const baseUrl = process.env.VERCEL_URL
   ? process.env.VERCEL_URL
@@ -26,6 +27,7 @@ const baseUrl = process.env.VERCEL_URL
 
 async function updateAgreementTransaction(transactionId: string, notification: Record<string, any>) {
   const supabase = createSupabaseServerClient();
+  const paymentService = createOrderPaymentService(supabase);
 
   // Fetch the current status in the database to check if the update is needed
   const { data: transactionToUpdate, error: transactionError } = await supabase
@@ -60,12 +62,22 @@ async function updateAgreementTransaction(transactionId: string, notification: R
     return;
   }
 
+  const linkedOrderId = await paymentService.getLinkedOrderId(agreement.id);
+
   if (transactionToUpdate.transaction_type === "DEPLOY_CONTRACT") {
     if (notification.state === "COMPLETE") {
       await supabase
         .from("escrow_agreements")
         .update({ status: "OPEN" })
         .eq("id", agreement.id);
+
+      if (linkedOrderId) {
+        try {
+          await paymentService.approveDeposit(agreement.id);
+        } catch (error) {
+          console.error("Failed to chain USDC approval for order payment:", error);
+        }
+      }
 
       return;
     }
@@ -81,11 +93,25 @@ async function updateAgreementTransaction(transactionId: string, notification: R
     return
   }
 
-  if (transactionToUpdate.transaction_type === "DEPOSIT_APPROVAL" && notification.state === "FAILED") {
-    await supabase
-      .from("escrow_agreements")
-      .update({ status: "OPEN" })
-      .eq("id", agreement.id);
+  if (transactionToUpdate.transaction_type === "DEPOSIT_APPROVAL") {
+    if (notification.state === "FAILED") {
+      await supabase
+        .from("escrow_agreements")
+        .update({ status: "OPEN" })
+        .eq("id", agreement.id);
+
+      return;
+    }
+
+    if (notification.state !== "COMPLETE") return;
+
+    if (linkedOrderId) {
+      try {
+        await paymentService.depositPayment(agreement.id);
+      } catch (error) {
+        console.error("Failed to chain escrow deposit for order payment:", error);
+      }
+    }
 
     return;
   }
@@ -121,6 +147,14 @@ async function updateAgreementTransaction(transactionId: string, notification: R
       .update({ status: "LOCKED" })
       .eq("id", agreement.id);
 
+    if (linkedOrderId) {
+      try {
+        await paymentService.markOrderPaidByEscrowAgreement(agreement.id);
+      } catch (error) {
+        console.error("Failed to mark order as PAID:", error);
+      }
+    }
+
     return;
   }
 
@@ -138,6 +172,14 @@ async function updateAgreementTransaction(transactionId: string, notification: R
       .from("escrow_agreements")
       .update({ status: "CLOSED" })
       .eq("id", agreement.id);
+
+    if (linkedOrderId) {
+      try {
+        await paymentService.markOrderCompletedByEscrowAgreement(agreement.id);
+      } catch (error) {
+        console.error("Failed to mark order as COMPLETED:", error);
+      }
+    }
   }
 }
 
