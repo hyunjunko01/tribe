@@ -21,6 +21,7 @@
 import { useOrders } from "@/app/hooks/useOrders";
 import { CreateOrderCard } from "@/components/create-order-card";
 import { OrdersList } from "@/components/orders-list";
+import { RegisterStoreCard } from "@/components/register-store-card";
 
 interface OrdersSectionProps {
   profileId: string;
@@ -37,6 +38,10 @@ export function OrdersSection({ profileId, children }: OrdersSectionProps) {
         <div className="break-inside-avoid w-[calc(50%-0.5rem)] flex">
           <CreateOrderCard onCreated={() => refresh(true)} />
         </div>
+      </div>
+
+      <div className="break-inside-avoid mb-4 max-w-md">
+        <RegisterStoreCard />
       </div>
 
       <div className="break-inside-avoid mb-4">

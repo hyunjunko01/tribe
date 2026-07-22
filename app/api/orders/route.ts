@@ -19,11 +19,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server-client";
 import { createOrderService } from "@/app/services/order.service";
+import { createStoreService } from "@/app/services/store.service";
 import { getAuthenticatedProfileId } from "@/app/api/orders/_auth";
 import type { OrderItem } from "@/types/orders";
 
 interface CreateOrderRequest {
-  storeProfileId: string;
+  storeId?: string;
+  /** @deprecated Use storeId — kept for backward compatibility */
+  storeProfileId?: string;
   amount: number;
   deliveryAddress: string;
   items?: OrderItem[];
@@ -58,14 +61,14 @@ export async function POST(req: NextRequest) {
     const body: CreateOrderRequest = await req.json();
 
     if (
-      !body.storeProfileId ||
+      (!body.storeId && !body.storeProfileId) ||
       body.amount == null ||
       !body.deliveryAddress
     ) {
       return NextResponse.json(
         {
           error:
-            "Missing required fields: storeProfileId, amount, deliveryAddress",
+            "Missing required fields: storeId, amount, deliveryAddress",
         },
         { status: 400 }
       );
@@ -78,30 +81,45 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (body.storeProfileId === auth.profileId) {
+    const storeService = createStoreService(supabase);
+    let storeProfileId: string;
+
+    if (body.storeId) {
+      const store = await storeService.getActiveStoreById(body.storeId);
+      if (!store) {
+        return NextResponse.json(
+          { error: "Registered store not found or inactive" },
+          { status: 404 }
+        );
+      }
+      storeProfileId = store.profile_id;
+    } else {
+      const store = await storeService.getActiveStoreByProfileId(
+        body.storeProfileId!
+      );
+      if (!store) {
+        return NextResponse.json(
+          {
+            error:
+              "Profile is not a registered active store. Use GET /api/stores to list merchants.",
+          },
+          { status: 400 }
+        );
+      }
+      storeProfileId = store.profile_id;
+    }
+
+    if (storeProfileId === auth.profileId) {
       return NextResponse.json(
         { error: "Customer and store must be different profiles" },
         { status: 400 }
       );
     }
 
-    const { data: storeProfile, error: storeError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", body.storeProfileId)
-      .maybeSingle();
-
-    if (storeError || !storeProfile) {
-      return NextResponse.json(
-        { error: "Store profile not found" },
-        { status: 404 }
-      );
-    }
-
     const orderService = createOrderService(supabase);
     const order = await orderService.createOrder({
       customerProfileId: auth.profileId,
-      storeProfileId: body.storeProfileId,
+      storeProfileId,
       amount: body.amount,
       deliveryAddress: body.deliveryAddress,
       items: body.items,

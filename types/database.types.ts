@@ -16,6 +16,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { Store } from "@/types/stores";
+
 export interface Profile {
   id: string;
   auth_user_id: string;
@@ -144,6 +146,14 @@ export type Database = {
           delivery_proof_url?: string | null;
         };
         Update: Partial<Omit<Order, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      stores: {
+        Row: Store;
+        Insert: Omit<Store, 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          is_active?: boolean;
+        };
+        Update: Partial<Omit<Store, 'id' | 'created_at' | 'updated_at'>>;
       };
     };
   };

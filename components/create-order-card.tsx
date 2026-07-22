@@ -21,7 +21,7 @@
 import { useEffect, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
-import { createClient } from "@/lib/utils/supabase/client";
+import type { StorePublic } from "@/types/stores";
 import {
   Card,
   CardContent,
@@ -48,12 +48,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-interface StoreProfile {
-  id: string;
-  name: string;
-  email: string;
-  wallets: Array<{ id: string; wallet_address: string; profile_id: string }>;
-}
+interface RegisteredStore extends StorePublic {}
 
 interface CreateOrderCardProps {
   onCreated?: () => void;
@@ -62,9 +57,9 @@ interface CreateOrderCardProps {
 export function CreateOrderCard({ onCreated }: CreateOrderCardProps) {
   const [loadingStores, setLoadingStores] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [stores, setStores] = useState<StoreProfile[]>([]);
+  const [stores, setStores] = useState<RegisteredStore[]>([]);
   const [open, setOpen] = useState(false);
-  const [selectedStore, setSelectedStore] = useState<StoreProfile | null>(null);
+  const [selectedStore, setSelectedStore] = useState<RegisteredStore | null>(null);
   const [amount, setAmount] = useState("1");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [itemName, setItemName] = useState("");
@@ -74,42 +69,18 @@ export function CreateOrderCard({ onCreated }: CreateOrderCardProps) {
   useEffect(() => {
     const loadStores = async () => {
       try {
-        const supabase = createClient();
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+        const res = await fetch("/api/stores");
+        const data = await res.json();
 
-        if (userError) throw userError;
-        if (!user) throw new Error("Not authenticated");
+        if (!res.ok) {
+          throw new Error(data.error || data.details || "Failed to load stores");
+        }
 
-        const { data: storeProfiles, error: storesError } = await supabase
-          .from("profiles")
-          .select(
-            `
-            id,
-            name,
-            email,
-            wallets (
-              id,
-              wallet_address,
-              profile_id
-            )
-          `
-          )
-          .neq("auth_user_id", user.id);
-
-        if (storesError) throw storesError;
-
-        const validStores = (storeProfiles ?? []).filter(
-          (profile) => profile.wallets && profile.wallets.length > 0
-        ) as StoreProfile[];
-
-        setStores(validStores);
+        setStores(data.stores ?? []);
       } catch (err) {
         console.error("Error loading stores:", err);
         setError(
-          err instanceof Error ? err.message : "Failed to load store profiles"
+          err instanceof Error ? err.message : "Failed to load registered stores"
         );
       } finally {
         setLoadingStores(false);
@@ -151,7 +122,7 @@ export function CreateOrderCard({ onCreated }: CreateOrderCardProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          storeProfileId: selectedStore.id,
+          storeId: selectedStore.id,
           amount: parsedAmount,
           deliveryAddress: deliveryAddress.trim(),
           items,
@@ -237,7 +208,7 @@ export function CreateOrderCard({ onCreated }: CreateOrderCardProps) {
                     className="w-full justify-between"
                   >
                     {selectedStore
-                      ? selectedStore.name || selectedStore.email
+                      ? selectedStore.name
                       : "Select store..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -251,7 +222,7 @@ export function CreateOrderCard({ onCreated }: CreateOrderCardProps) {
                           {stores.map((store) => (
                             <CommandItem
                               key={store.id}
-                              value={`${store.name} ${store.email}`}
+                              value={store.name}
                               onSelect={() => {
                                 setSelectedStore(store);
                                 setOpen(false);
@@ -265,14 +236,14 @@ export function CreateOrderCard({ onCreated }: CreateOrderCardProps) {
                                     : "opacity-0"
                                 )}
                               />
-                              {store.name && store.email
-                                ? `${store.name} (${store.email})`
-                                : store.name || store.email}
+                              {store.name}
                             </CommandItem>
                           ))}
                         </CommandGroup>
                       ) : (
-                        <CommandEmpty>No stores found.</CommandEmpty>
+                        <CommandEmpty>
+                          No registered stores. A merchant must register first.
+                        </CommandEmpty>
                       )}
                     </CommandList>
                   </Command>
