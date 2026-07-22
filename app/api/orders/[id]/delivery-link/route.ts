@@ -69,7 +69,8 @@ export async function POST(
     const token = crypto.randomBytes(32).toString("hex");
     const updated = await orderService.startDelivery(params.id, token);
     const baseUrl = getBaseUrl().replace(/\/$/, "");
-    const uploadUrl = `${baseUrl}/api/orders/proof?token=${token}`;
+    // Rider-facing page; proof API remains at /api/orders/proof
+    const uploadUrl = `${baseUrl}/deliver?token=${token}`;
 
     return NextResponse.json(
       {

@@ -129,94 +129,133 @@ export const createOrderPaymentService = (supabase: SupabaseClient) => {
         );
       }
 
-      if (order.escrow_agreement_id) {
-        throw new Error(
-          "Order already has an escrow agreement linked. Payment may be in progress."
-        );
+      // Circle contract name/description reject hyphens (UUID chars).
+      const contractLabel = `Order Escrow ${order.id.replace(/-/g, "")}`;
+
+      let agreementId = order.escrow_agreement_id;
+      let transactionId: string | null = null;
+
+      if (agreementId) {
+        const { data: existingAgreement, error: existingError } = await supabase
+          .from("escrow_agreements")
+          .select("id, circle_contract_id, transaction_id, status")
+          .eq("id", agreementId)
+          .single();
+
+        if (existingError || !existingAgreement) {
+          throw new Error("Linked escrow agreement not found");
+        }
+
+        if (existingAgreement.circle_contract_id) {
+          throw new Error(
+            "Order already has an escrow agreement linked. Payment may be in progress."
+          );
+        }
+
+        // Resume deploy after a previous failed attempt.
+        transactionId = existingAgreement.transaction_id;
+      } else {
+        const { data: customerWallet, error: customerWalletError } =
+          await supabase
+            .from("wallets")
+            .select("id, profile_id, wallet_address, circle_wallet_id")
+            .eq("profile_id", order.customer_profile_id)
+            .single();
+
+        if (customerWalletError || !customerWallet) {
+          throw new Error("Customer wallet not found");
+        }
+
+        const { data: storeWallet, error: storeWalletError } = await supabase
+          .from("wallets")
+          .select("id, profile_id, wallet_address, circle_wallet_id")
+          .eq("profile_id", order.store_profile_id)
+          .single();
+
+        if (storeWalletError || !storeWallet) {
+          throw new Error("Store wallet not found");
+        }
+
+        const amountStr = String(order.amount);
+        const terms = {
+          orderId: order.id,
+          items: order.items,
+          amounts: [
+            {
+              amount: amountStr,
+              for: "Order payment",
+              location: order.delivery_address,
+            },
+          ],
+        };
+
+        const transaction = await agreementService.createTransaction({
+          walletId: customerWallet.id,
+          profileId: customerWallet.profile_id,
+          amount: order.amount,
+          description: `Order payment for order ${order.id}`,
+          transactionType: "DEPLOY_CONTRACT",
+        });
+
+        const agreement = await agreementService.createAgreement({
+          beneficiaryWalletId: storeWallet.id,
+          depositorWalletId: customerWallet.id,
+          transactionId: transaction.id,
+          terms,
+        });
+
+        await orderService.updateOrder(orderId, {
+          escrow_agreement_id: agreement.id,
+        });
+
+        await supabase
+          .from("transactions")
+          .update({ escrow_agreement_id: agreement.id })
+          .eq("id", transaction.id);
+
+        agreementId = agreement.id;
+        transactionId = transaction.id;
       }
 
-      const { data: customerWallet, error: customerWalletError } = await supabase
-        .from("wallets")
-        .select("id, profile_id, wallet_address, circle_wallet_id")
-        .eq("profile_id", order.customer_profile_id)
-        .single();
-
-      if (customerWalletError || !customerWallet) {
-        throw new Error("Customer wallet not found");
+      if (!agreementId || !transactionId) {
+        throw new Error("Missing escrow agreement or transaction for payment");
       }
-
-      const { data: storeWallet, error: storeWalletError } = await supabase
-        .from("wallets")
-        .select("id, profile_id, wallet_address, circle_wallet_id")
-        .eq("profile_id", order.store_profile_id)
-        .single();
-
-      if (storeWalletError || !storeWallet) {
-        throw new Error("Store wallet not found");
-      }
-
-      const amountStr = String(order.amount);
-      const terms = {
-        orderId: order.id,
-        items: order.items,
-        amounts: [
-          {
-            amount: amountStr,
-            for: "Order payment",
-            location: order.delivery_address,
-          },
-        ],
-      };
-
-      const transaction = await agreementService.createTransaction({
-        walletId: customerWallet.id,
-        profileId: customerWallet.profile_id,
-        amount: order.amount,
-        description: `Order payment for order ${order.id}`,
-        transactionType: "DEPLOY_CONTRACT",
-      });
-
-      const agreement = await agreementService.createAgreement({
-        beneficiaryWalletId: storeWallet.id,
-        depositorWalletId: customerWallet.id,
-        transactionId: transaction.id,
-        terms,
-      });
-
-      await orderService.updateOrder(orderId, {
-        escrow_agreement_id: agreement.id,
-      });
-
-      await supabase
-        .from("transactions")
-        .update({ escrow_agreement_id: agreement.id })
-        .eq("id", transaction.id);
 
       const agentWalletId = requireEnv("NEXT_PUBLIC_AGENT_WALLET_ID");
       const agentWalletAddress = requireEnv("NEXT_PUBLIC_AGENT_WALLET_ADDRESS");
       const blockchain = requireEnv("CIRCLE_BLOCKCHAIN") as Blockchain;
       const usdcAddress = requireEnv("NEXT_PUBLIC_USDC_CONTRACT_ADDRESS");
 
-      const createResponse = await circleContractSdk.deployContract({
-        name: `Order Escrow ${order.id}`,
-        description: `Order Escrow ${order.id}`,
-        walletId: agentWalletId,
-        blockchain,
-        fee: {
-          type: "level",
-          config: {
-            feeLevel: "MEDIUM",
+      let createResponse;
+      try {
+        createResponse = await circleContractSdk.deployContract({
+          name: contractLabel,
+          description: contractLabel,
+          walletId: agentWalletId,
+          blockchain,
+          fee: {
+            type: "level",
+            config: {
+              feeLevel: "MEDIUM",
+            },
           },
-        },
-        constructorParameters: [
-          agentWalletAddress,
-          usdcAddress,
-          "EscrowProtocol",
-          "1.0",
-        ],
-        abiJson: REFUND_PROTOCOL_ABI_JSON,
-        bytecode: REFUND_PROTOCOL_BYTECODE,
-      });
+          constructorParameters: [
+            agentWalletAddress,
+            usdcAddress,
+            "EscrowProtocol",
+            "1.0",
+          ],
+          abiJson: REFUND_PROTOCOL_ABI_JSON,
+          bytecode: REFUND_PROTOCOL_BYTECODE,
+        });
+      } catch (error: any) {
+        const circleErrors = error?.response?.data?.errors;
+        const circleMessage =
+          Array.isArray(circleErrors) && circleErrors.length > 0
+            ? circleErrors.map((e: { message?: string }) => e.message).join("; ")
+            : error?.response?.data?.message || error?.message;
+        throw new Error(`Circle deploy failed: ${circleMessage}`);
+      }
 
       if (!createResponse.data) {
         throw new Error("No data returned from contract deployment");
@@ -228,7 +267,7 @@ export const createOrderPaymentService = (supabase: SupabaseClient) => {
           circle_contract_id: createResponse.data.contractId,
           status: "PENDING",
         })
-        .eq("id", agreement.id);
+        .eq("id", agreementId);
 
       if (agreementUpdateError) {
         throw new Error("Failed to update escrow agreement with contract ID");
@@ -237,7 +276,7 @@ export const createOrderPaymentService = (supabase: SupabaseClient) => {
       const { error: transactionUpdateError } = await supabase
         .from("transactions")
         .update({ circle_transaction_id: createResponse.data.transactionId })
-        .eq("id", transaction.id);
+        .eq("id", transactionId);
 
       if (transactionUpdateError) {
         throw new Error("Failed to update transaction with Circle transaction ID");
@@ -247,7 +286,7 @@ export const createOrderPaymentService = (supabase: SupabaseClient) => {
 
       return {
         order: updatedOrder as Order,
-        escrowAgreementId: agreement.id,
+        escrowAgreementId: agreementId,
         deployTransactionId: createResponse.data.transactionId,
         contractId: createResponse.data.contractId,
       };
