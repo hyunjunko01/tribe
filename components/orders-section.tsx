@@ -23,31 +23,45 @@ import { CreateOrderCard } from "@/components/create-order-card";
 import { OrdersList } from "@/components/orders-list";
 import { RegisterStoreCard } from "@/components/register-store-card";
 
+export type DashboardOrderRole = "customer" | "store";
+
 interface OrdersSectionProps {
   profileId: string;
+  role: DashboardOrderRole;
   children: React.ReactNode;
 }
 
-export function OrdersSection({ profileId, children }: OrdersSectionProps) {
+export function OrdersSection({ profileId, role, children }: OrdersSectionProps) {
   const { orders, loading, error, refresh } = useOrders();
+
+  const filteredOrders = orders.filter((order) =>
+    role === "customer"
+      ? order.customer_profile_id === profileId
+      : order.store_profile_id === profileId
+  );
 
   return (
     <>
-      <div className="flex flex-wrap space-x-4 mb-4">
+      <div className="flex flex-wrap gap-4 mb-4">
         {children}
-        <div className="break-inside-avoid w-[calc(50%-0.5rem)] flex">
-          <CreateOrderCard onCreated={() => refresh(true)} />
-        </div>
+        {role === "customer" && (
+          <div className="break-inside-avoid w-[calc(50%-0.5rem)] flex">
+            <CreateOrderCard onCreated={() => refresh(true)} />
+          </div>
+        )}
       </div>
 
-      <div className="break-inside-avoid mb-4 max-w-md">
-        <RegisterStoreCard />
-      </div>
+      {role === "store" && (
+        <div className="break-inside-avoid mb-4 max-w-md">
+          <RegisterStoreCard />
+        </div>
+      )}
 
       <div className="break-inside-avoid mb-4">
         <OrdersList
           profileId={profileId}
-          orders={orders}
+          viewRole={role}
+          orders={filteredOrders}
           loading={loading}
           error={error}
           onRefresh={() => refresh(false)}

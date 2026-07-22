@@ -16,96 +16,58 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createSupabaseServerComponentClient } from "@/lib/supabase/server-client";
-import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EscrowAgreements } from "@/components/escrow-agreements";
-import { WalletBalance } from "@/components/wallet-balance";
-import { RequestUsdcButton } from "@/components/request-usdc-button";
-import { USDCButton } from "@/components/usdc-button";
-import dynamic from "next/dynamic";
-import { WalletInformationDialog } from "@/components/wallet-information-dialog";
-import { OrdersSection } from "@/components/orders-section";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { getDashboardSession } from "@/lib/dashboard/get-dashboard-session";
 
-const Transactions = dynamic(() => import('@/components/transactions').then(mod => mod.Transactions), { ssr: false })
-
-export default async function ProtectedPage() {
-  const supabase = createSupabaseServerComponentClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return redirect("/sign-in");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  const { data: wallet } = await supabase
-    .schema("public")
-    .from("wallets")
-    .select()
-    .eq("profile_id", profile?.id)
-    .maybeSingle();
-
-  if (!wallet?.circle_wallet_id) {
-    return redirect("/sign-in?error=Wallet%20not%20found.%20Please%20sign%20in%20again%20to%20create%20one.");
-  }
-
-  if (!profile?.id) {
-    return redirect("/sign-in?error=Profile%20not%20found.");
-  }
+export default async function DashboardPage() {
+  await getDashboardSession();
 
   return (
     <>
-      <OrdersSection profileId={profile.id}>
-        <Card className="break-inside-avoid w-[calc(50%-0.5rem)]">
-          <CardHeader className="flex-row items-center space-between">
-            <CardTitle>Account balance</CardTitle>
-            <WalletInformationDialog wallet={wallet} />
-          </CardHeader>
-          <CardContent>
-            <div className="grid w-full items-center gap-6">
-              <div className="flex flex-col space-y-1.5">
-                <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">
-                  <WalletBalance walletId={wallet.circle_wallet_id} />
-                </h1>
-              </div>
-              <div className="flex gap-2">
-                <USDCButton className="flex-1" mode="BUY" walletAddress={wallet.wallet_address} />
-                <USDCButton className="flex-1" mode="SELL" walletAddress={wallet.wallet_address} />
-                {process.env.NODE_ENV === "development" && <RequestUsdcButton walletAddress={wallet.wallet_address} />}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </OrdersSection>
-
-      {/* Legacy escrow agreements — kept for reference during migration */}
-      <div className="break-inside-avoid mb-4">
-        <EscrowAgreements
-          userId={user.id}
-          profileId={profile.id}
-          walletId={wallet.circle_wallet_id}
-        />
+      <div className="mb-6">
+        <h1 className="scroll-m-20 text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground mt-1">
+          Choose a role for this session. The same account can act as customer or store on
+          different orders.
+        </p>
       </div>
 
-      <div className="break-inside-avoid mb-4">
-        <div className="flex flex-col gap-2 items-start">
-          <Card className="break-inside-avoid mb-4 w-full">
-            <CardHeader>
-              <CardTitle>Your transactions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Transactions wallet={wallet} profile={profile} />
-            </CardContent>
-          </Card>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2 max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Customer</CardTitle>
+            <CardDescription>
+              Pick a registered store, create an order, pay into escrow, and track delivery.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/dashboard/customer">Open customer dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Store</CardTitle>
+            <CardDescription>
+              Register your store, admit incoming orders, and issue rider delivery links.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/dashboard/store">Open store dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </>
   );

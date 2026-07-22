@@ -32,8 +32,11 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+export type OrderListViewRole = "customer" | "store";
+
 interface OrdersListProps {
   profileId: string;
+  viewRole: OrderListViewRole;
   orders: OrderWithProfiles[];
   loading: boolean;
   error: string | null;
@@ -71,12 +74,9 @@ function counterpartyName(order: OrderWithProfiles, profileId: string) {
   return order.customer_profile?.name || "Customer";
 }
 
-function roleLabel(order: OrderWithProfiles, profileId: string) {
-  return order.customer_profile_id === profileId ? "Customer" : "Store";
-}
-
 export function OrdersList({
   profileId,
+  viewRole,
   orders,
   loading,
   error,
@@ -195,17 +195,17 @@ export function OrdersList({
           <p className="text-sm text-red-500">{error}</p>
         ) : orders.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No orders yet. Create one to start the escrow flow.
+            {viewRole === "customer"
+              ? "No orders yet. Create one to start the escrow flow."
+              : "No incoming orders yet."}
           </p>
         ) : (
           <div className="space-y-3">
             {orders.map((order) => {
-              const isCustomer = order.customer_profile_id === profileId;
-              const isStore = order.store_profile_id === profileId;
               const busy = busyOrderId === order.id;
               const canCancel = CANCELLABLE.includes(order.status);
               const canIssueLink =
-                isStore &&
+                viewRole === "store" &&
                 (order.status === "ADMITTED" ||
                   (order.status === "IN_DELIVERY" && !order.delivery_proof_url));
 
@@ -219,9 +219,6 @@ export function OrdersList({
                       <Badge variant={statusVariant(order.status)}>
                         {order.status}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {roleLabel(order, profileId)}
-                      </span>
                     </div>
                     <p className="truncate text-sm font-medium">
                       {formatAmount(order.amount, order.currency)} ·{" "}
@@ -236,7 +233,7 @@ export function OrdersList({
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {isCustomer && order.status === "PENDING_PAYMENT" && (
+                    {viewRole === "customer" && order.status === "PENDING_PAYMENT" && (
                       <Button
                         size="sm"
                         disabled={busy}
@@ -245,7 +242,7 @@ export function OrdersList({
                         Pay
                       </Button>
                     )}
-                    {isStore && order.status === "PAID" && (
+                    {viewRole === "store" && order.status === "PAID" && (
                       <Button
                         size="sm"
                         disabled={busy}
@@ -264,7 +261,7 @@ export function OrdersList({
                         Delivery link
                       </Button>
                     )}
-                    {canCancel && (isCustomer || isStore) && (
+                    {canCancel && (
                       <Button
                         size="sm"
                         variant="outline"

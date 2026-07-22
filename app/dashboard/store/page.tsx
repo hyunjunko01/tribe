@@ -17,10 +17,11 @@
  */
 
 import { DashboardWalletCard } from "@/components/dashboard-wallet-card";
+import { OrdersSection } from "@/components/orders-section";
 import { getDashboardSession } from "@/lib/dashboard/get-dashboard-session";
 
 export default async function StoreDashboardPage() {
-  const { wallet } = await getDashboardSession();
+  const { profile, wallet } = await getDashboardSession();
 
   return (
     <>
@@ -31,9 +32,9 @@ export default async function StoreDashboardPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-4 mb-4">
+      <OrdersSection profileId={profile.id} role="store">
         <DashboardWalletCard wallet={wallet} />
-      </div>
+      </OrdersSection>
     </>
   );
 }
