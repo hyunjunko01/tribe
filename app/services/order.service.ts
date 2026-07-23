@@ -135,6 +135,22 @@ export const createOrderService = (supabase: SupabaseClient) => {
       return (data as OrderWithProfiles[]) || [];
     },
 
+    async listOrdersByStatus(
+      status: OrderStatus
+    ): Promise<OrderWithProfiles[]> {
+      const { data, error } = await supabase
+        .from("orders")
+        .select(ORDER_SELECT)
+        .eq("status", status)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        throw new Error(`Failed to list orders by status: ${error.message}`);
+      }
+
+      return (data as OrderWithProfiles[]) || [];
+    },
+
     updateOrder,
 
     async updateOrderStatus(

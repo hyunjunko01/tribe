@@ -549,6 +549,71 @@ export const createOrderPaymentService = (supabase: SupabaseClient) => {
       return circleRefundResponse.data?.id;
     },
 
+    /**
+     * Arbiter (agent wallet) refunds disputed escrow via refundByArbiter.
+     * Used by admin dispute resolve — not by cancel.
+     */
+    async refundPaymentByArbiter(
+      agreementId: string,
+      description = "Funds refunded by arbiter"
+    ): Promise<string | undefined> {
+      const agreement = await getAgreementWithWallets(supabase, agreementId);
+
+      if (!agreement.circle_contract_id) {
+        throw new Error("Escrow agreement has no Circle contract ID");
+      }
+
+      const contractData = await circleContractSdk.getContract({
+        id: agreement.circle_contract_id,
+      });
+
+      if (!contractData.data?.contract.contractAddress) {
+        throw new Error("Could not retrieve contract address");
+      }
+
+      const contractAddress = contractData.data.contract.contractAddress;
+      const amountStr = agreement.terms.amounts?.[0]?.amount;
+
+      if (!amountStr) {
+        throw new Error("Escrow agreement terms missing payment amount");
+      }
+
+      const parsedAmount = parseAmount(amountStr);
+      const agentWalletId = requireEnv("NEXT_PUBLIC_AGENT_WALLET_ID");
+
+      const circleRefundResponse =
+        await circleDeveloperSdk.createContractExecutionTransaction({
+          walletId: agentWalletId,
+          contractAddress,
+          abiFunctionSignature: "refundByArbiter(uint256)",
+          abiParameters: [0],
+          fee: {
+            type: "level",
+            config: {
+              feeLevel: "MEDIUM",
+            },
+          },
+        });
+
+      // Agent wallet is not in `wallets`; record against depositor (refund recipient).
+      await agreementService.createTransaction({
+        walletId: agreement.depositor_wallet.id,
+        circleTransactionId: circleRefundResponse.data?.id,
+        escrowAgreementId: agreement.id,
+        transactionType: "DEPOSIT_REFUND",
+        profileId: agreement.depositor_wallet.profile_id,
+        amount: parsedAmount,
+        description,
+      });
+
+      await supabase
+        .from("escrow_agreements")
+        .update({ status: "PENDING" })
+        .eq("id", agreement.id);
+
+      return circleRefundResponse.data?.id;
+    },
+
     async markOrderCompletedByEscrowAgreement(
       agreementId: string
     ): Promise<void> {

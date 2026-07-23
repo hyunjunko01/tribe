@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export type OrderListViewRole = "customer" | "store";
+export type OrderListViewRole = "customer" | "store" | "admin";
 
 interface OrdersListProps {
   profileId: string;
@@ -67,7 +67,17 @@ function formatAmount(amount: number, currency: string) {
   })} ${currency}`;
 }
 
-function counterpartyName(order: OrderWithProfiles, profileId: string) {
+function orderPartiesLabel(
+  order: OrderWithProfiles,
+  profileId: string,
+  viewRole: OrderListViewRole
+) {
+  if (viewRole === "admin") {
+    const customer = order.customer_profile?.name || "Customer";
+    const store = order.store_profile?.name || "Store";
+    return `${customer} → ${store}`;
+  }
+
   if (order.customer_profile_id === profileId) {
     return order.store_profile?.name || "Store";
   }
@@ -193,7 +203,9 @@ export function OrdersList({
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle>Orders</CardTitle>
+        <CardTitle>
+          {viewRole === "admin" ? "Disputed orders" : "Orders"}
+        </CardTitle>
         <Button
           type="button"
           variant="outline"
@@ -216,7 +228,9 @@ export function OrdersList({
           <p className="text-sm text-muted-foreground">
             {viewRole === "customer"
               ? "No orders yet. Create one to start the escrow flow."
-              : "No incoming orders yet."}
+              : viewRole === "admin"
+                ? "No disputed orders right now."
+                : "No incoming orders yet."}
           </p>
         ) : (
           <div className="space-y-3">
@@ -241,7 +255,7 @@ export function OrdersList({
                     </div>
                     <p className="truncate text-sm font-medium">
                       {formatAmount(order.amount, order.currency)} ·{" "}
-                      {counterpartyName(order, profileId)}
+                      {orderPartiesLabel(order, profileId, viewRole)}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {order.delivery_address}
@@ -280,7 +294,7 @@ export function OrdersList({
                         Delivery link
                       </Button>
                     )}
-                    {viewRole === "store" && order.status === "DISPUTED" && (
+                    {viewRole === "admin" && order.status === "DISPUTED" && (
                       <>
                         <Button
                           size="sm"

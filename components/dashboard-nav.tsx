@@ -26,6 +26,7 @@ const links = [
   { href: "/dashboard", label: "Home", exact: true },
   { href: "/dashboard/customer", label: "Customer", exact: false },
   { href: "/dashboard/store", label: "Store", exact: false },
+  { href: "/dashboard/admin", label: "Admin", exact: false },
 ] as const;
 
 function isActive(pathname: string, href: string, exact: boolean) {

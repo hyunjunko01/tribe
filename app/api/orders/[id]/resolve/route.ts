@@ -21,6 +21,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server-client";
 import { createOrderService } from "@/app/services/order.service";
 import { createOrderPaymentService } from "@/app/services/order-payment.service";
 import { getAuthenticatedProfileId } from "@/app/api/orders/_auth";
+import { isAdminProfileId } from "@/lib/admin";
 
 type ResolveAction = "refund" | "release";
 
@@ -36,6 +37,13 @@ export async function POST(
     const supabase = createSupabaseServerClient();
     const auth = await getAuthenticatedProfileId(supabase);
     if ("error" in auth) return auth.error;
+
+    if (!isAdminProfileId(auth.profileId)) {
+      return NextResponse.json(
+        { error: "Only an admin arbiter can resolve a disputed order" },
+        { status: 403 }
+      );
+    }
 
     const body = await req.json().catch(() => ({}));
     const action = body?.action;
@@ -55,13 +63,6 @@ export async function POST(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (order.store_profile_id !== auth.profileId) {
-      return NextResponse.json(
-        { error: "Only the store can resolve a disputed order" },
-        { status: 403 }
-      );
-    }
-
     if (order.status !== "DISPUTED") {
       return NextResponse.json(
         {
@@ -79,9 +80,9 @@ export async function POST(
     }
 
     if (action === "refund") {
-      const refundTransactionId = await paymentService.refundPayment(
+      const refundTransactionId = await paymentService.refundPaymentByArbiter(
         order.escrow_agreement_id,
-        "Funds refunded after dispute resolve"
+        "Funds refunded after dispute resolve by arbiter"
       );
 
       const updated = await orderService.updateOrderStatus(
@@ -95,7 +96,7 @@ export async function POST(
           action,
           order: updated,
           refundTransactionId,
-          message: "Dispute resolved with refund to customer.",
+          message: "Dispute resolved with arbiter refund to customer.",
         },
         { status: 200 }
       );
@@ -103,7 +104,7 @@ export async function POST(
 
     const releaseTransactionId = await paymentService.releasePayment(
       order.escrow_agreement_id,
-      "Funds released after dispute resolve"
+      "Funds released after dispute resolve by arbiter"
     );
 
     const updatedOrder = await orderService.getOrderById(params.id);
