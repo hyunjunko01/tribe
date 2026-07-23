@@ -9,7 +9,7 @@ Integrators keep their own identity, menus, rider dispatch, and branding. You pl
 
 A third party (**admin / arbiter**) settles `DISPUTED` orders. Riders stay off-chain and upload proof via a one-time link (no Tribe account).
 
-> This doc describes the **shipped API today**. Optional `/api/customer/*` and `/api/store/*` aliases may be added later; until then, call the endpoints below directly.
+> Prefer the **role-prefixed aliases** below (`/api/customer/*`, `/api/store/*`) when wiring integrator clients. The original `/api/orders` and `/api/stores` paths still work and share the same handlers.
 
 ---
 
@@ -61,18 +61,22 @@ PENDING_PAYMENT ──pay──▶ PAID ──admit──▶ ADMITTED
 Typical sequence for a **customer-facing** app (or Tribe `/dashboard/customer`):
 
 ```text
-1. GET  /api/stores
-2. POST /api/orders          { storeId, amount, deliveryAddress, items? }
-3. POST /api/orders/:id/pay
-4. Poll GET /api/orders or GET /api/orders/:id  until PAID / ADMITTED / …
-5. Optional: POST /api/orders/:id/cancel   (before IN_DELIVERY)
+1. GET  /api/customer/stores
+2. POST /api/customer/orders          { storeId, amount, deliveryAddress, items? }
+3. POST /api/customer/orders/:id/pay
+4. Poll GET /api/customer/orders or GET /api/customer/orders/:id  until PAID / ADMITTED / …
+5. Optional: POST /api/customer/orders/:id/cancel   (before IN_DELIVERY)
 ```
+
+Canonical equivalents: `/api/stores`, `/api/orders`, `/api/orders/:id/pay`, `/api/orders/:id/cancel`.
 
 ### 3.1 List registered stores
 
 ```http
-GET /api/stores
+GET /api/customer/stores
 ```
+
+*(Alias of `GET /api/stores`.)*
 
 **Auth:** logged-in user  
 **Response:**
@@ -89,7 +93,7 @@ Only **active registered stores** with a wallet appear. Use `stores[].id` as `st
 ### 3.2 Create order
 
 ```http
-POST /api/orders
+POST /api/customer/orders
 Content-Type: application/json
 
 {
@@ -102,6 +106,8 @@ Content-Type: application/json
   "currency": "USDC"
 }
 ```
+
+*(Alias of `POST /api/orders`.)*
 
 | Field | Required | Notes |
 | --- | --- | --- |
@@ -118,8 +124,10 @@ Content-Type: application/json
 ### 3.3 Pay into escrow
 
 ```http
-POST /api/orders/:id/pay
+POST /api/customer/orders/:id/pay
 ```
+
+*(Alias of `POST /api/orders/:id/pay`.)*
 
 **Who:** order customer only  
 **Effect:** deploys escrow (agent wallet = arbiter), then deposits USDC. Status moves toward `PAID` as Circle webhooks confirm.
@@ -142,17 +150,21 @@ Poll order status after pay; do not assume `PAID` in the same response.
 ### 3.4 List / get orders
 
 ```http
-GET /api/orders
-GET /api/orders/:id
+GET /api/customer/orders
+GET /api/customer/orders/:id
 ```
 
-`GET /api/orders` returns orders where the caller is **customer or store**. Filter client-side by `customer_profile_id` for a customer UI.
+*(Aliases of `GET /api/orders` and `GET /api/orders/:id`.)*
+
+`GET /api/customer/orders` returns orders where the caller is **customer or store** (same as the canonical list). Filter client-side by `customer_profile_id` for a customer UI.
 
 ### 3.5 Cancel (customer)
 
 ```http
-POST /api/orders/:id/cancel
+POST /api/customer/orders/:id/cancel
 ```
+
+*(Alias of `POST /api/orders/:id/cancel`.)*
 
 Allowed while status is `PENDING_PAYMENT`, `PAID`, or `ADMITTED`.  
 If already paid (`PAID` / `ADMITTED` with escrow), Tribe starts an on-chain refund.
@@ -164,35 +176,41 @@ If already paid (`PAID` / `ADMITTED` with escrow), Tribe starts an on-chain refu
 Typical sequence for a **store-facing** app (or Tribe `/dashboard/store`):
 
 ```text
-0. POST /api/stores          { name }     // once per profile
-1. GET  /api/orders                       // filter store_profile_id
-2. POST /api/orders/:id/admit             // when PAID
-3. POST /api/orders/:id/delivery-link     // share uploadUrl with rider
+0. POST /api/store/register          { name }     // once per profile
+1. GET  /api/store/orders                       // filter store_profile_id
+2. POST /api/store/orders/:id/admit             // when PAID
+3. POST /api/store/orders/:id/delivery-link     // share uploadUrl with rider
 4. Rider uploads proof (public link) → COMPLETED or DISPUTED
-5. Optional: POST /api/orders/:id/cancel  // before IN_DELIVERY
+5. Optional: POST /api/store/orders/:id/cancel  // before IN_DELIVERY
 ```
+
+Canonical equivalents: `POST /api/stores`, `/api/orders`, `/api/orders/:id/admit`, `/api/orders/:id/delivery-link`, `/api/orders/:id/cancel`.
 
 Store **cannot** resolve disputes. On `DISPUTED`, show status only; admin settles.
 
 ### 4.1 Register as store
 
 ```http
-POST /api/stores
+POST /api/store/register
 Content-Type: application/json
 
 { "name": "Demo Pizza" }
 ```
 
+*(Alias of `POST /api/stores`.)*
+
 **Auth:** logged-in user with a Circle wallet  
 **Response (201):** `{ success, store }` (`store.id`, `store.profile_id`, `name`, …)
 
-One active registration per profile. After this, the store appears in `GET /api/stores` for customers.
+One active registration per profile. After this, the store appears in `GET /api/customer/stores` (or `GET /api/stores`) for customers.
 
 ### 4.2 Admit order
 
 ```http
-POST /api/orders/:id/admit
+POST /api/store/orders/:id/admit
 ```
+
+*(Alias of `POST /api/orders/:id/admit`.)*
 
 **Who:** order store only  
 **Requires:** `status === "PAID"`  
@@ -201,8 +219,10 @@ POST /api/orders/:id/admit
 ### 4.3 Issue delivery link
 
 ```http
-POST /api/orders/:id/delivery-link
+POST /api/store/orders/:id/delivery-link
 ```
+
+*(Alias of `POST /api/orders/:id/delivery-link`.)*
 
 **Who:** order store only  
 **Allowed:** `ADMITTED`, or `IN_DELIVERY` without proof yet  
@@ -222,7 +242,8 @@ Send `uploadUrl` to the rider (SMS, chat, etc.). The rider opens the page and up
 
 ### 4.4 Cancel (store)
 
-Same endpoint as customer: `POST /api/orders/:id/cancel`.  
+Same as customer cancel via the store alias: `POST /api/store/orders/:id/cancel`  
+(or canonical `POST /api/orders/:id/cancel`).  
 Either participant may cancel before `IN_DELIVERY`.
 
 ### 4.5 Disputed orders (store)
@@ -256,25 +277,25 @@ file: <image/jpeg|png>
 
 ## 6. Endpoint cheat sheet
 
-### Customer
+### Customer (`/api/customer/*`)
 
-| Step | Method | Path |
-| --- | --- | --- |
-| List stores | `GET` | `/api/stores` |
-| Create order | `POST` | `/api/orders` |
-| Pay | `POST` | `/api/orders/:id/pay` |
-| List / get | `GET` | `/api/orders`, `/api/orders/:id` |
-| Cancel | `POST` | `/api/orders/:id/cancel` |
+| Step | Method | Alias path | Canonical |
+| --- | --- | --- | --- |
+| List stores | `GET` | `/api/customer/stores` | `/api/stores` |
+| Create order | `POST` | `/api/customer/orders` | `/api/orders` |
+| Pay | `POST` | `/api/customer/orders/:id/pay` | `/api/orders/:id/pay` |
+| List / get | `GET` | `/api/customer/orders`, `/api/customer/orders/:id` | `/api/orders`, `/api/orders/:id` |
+| Cancel | `POST` | `/api/customer/orders/:id/cancel` | `/api/orders/:id/cancel` |
 
-### Store
+### Store (`/api/store/*`)
 
-| Step | Method | Path |
-| --- | --- | --- |
-| Register | `POST` | `/api/stores` |
-| List / get | `GET` | `/api/orders`, `/api/orders/:id` |
-| Admit | `POST` | `/api/orders/:id/admit` |
-| Delivery link | `POST` | `/api/orders/:id/delivery-link` |
-| Cancel | `POST` | `/api/orders/:id/cancel` |
+| Step | Method | Alias path | Canonical |
+| --- | --- | --- | --- |
+| Register | `POST` | `/api/store/register` | `/api/stores` |
+| List / get | `GET` | `/api/store/orders`, `/api/store/orders/:id` | `/api/orders`, `/api/orders/:id` |
+| Admit | `POST` | `/api/store/orders/:id/admit` | `/api/orders/:id/admit` |
+| Delivery link | `POST` | `/api/store/orders/:id/delivery-link` | `/api/orders/:id/delivery-link` |
+| Cancel | `POST` | `/api/store/orders/:id/cancel` | `/api/orders/:id/cancel` |
 
 ### Admin / rider (supporting)
 
