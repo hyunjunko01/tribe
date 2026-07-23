@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server-client";
 import { createOrderService } from "@/app/services/order.service";
+import { createOrderPaymentService } from "@/app/services/order-payment.service";
 import { getAuthenticatedProfileId } from "@/app/api/orders/_auth";
 import type { OrderStatus } from "@/types/orders";
 
@@ -27,6 +28,8 @@ const CANCELLABLE_STATUSES: OrderStatus[] = [
   "PAID",
   "ADMITTED",
 ];
+
+const REFUNDABLE_STATUSES: OrderStatus[] = ["PAID", "ADMITTED"];
 
 export async function POST(
   _req: NextRequest,
@@ -38,6 +41,7 @@ export async function POST(
     if ("error" in auth) return auth.error;
 
     const orderService = createOrderService(supabase);
+    const paymentService = createOrderPaymentService(supabase);
     const order = await orderService.getOrderById(params.id);
 
     if (!order) {
@@ -61,13 +65,32 @@ export async function POST(
       );
     }
 
+    const needsRefund =
+      REFUNDABLE_STATUSES.includes(order.status) && !!order.escrow_agreement_id;
+
+    let refundTransactionId: string | undefined;
+
+    if (needsRefund && order.escrow_agreement_id) {
+      refundTransactionId = await paymentService.refundPayment(
+        order.escrow_agreement_id,
+        "Funds refunded after order cancel"
+      );
+    }
+
     const updated = await orderService.updateOrderStatus(
       params.id,
       "CANCELLED"
     );
 
     return NextResponse.json(
-      { success: true, order: updated },
+      {
+        success: true,
+        order: updated,
+        refundTransactionId,
+        message: needsRefund
+          ? "Order cancelled. Escrow refund initiated."
+          : "Order cancelled.",
+      },
       { status: 200 }
     );
   } catch (error: any) {

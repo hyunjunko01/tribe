@@ -120,16 +120,33 @@ async function updateAgreementTransaction(transactionId: string, notification: R
     if (notification.state === "FAILED") {
       await supabase
         .from("escrow_agreements")
-        .update({ status: "OPEN" })
+        .update({ status: linkedOrderId ? "LOCKED" : "OPEN" })
         .eq("id", agreement.id);
     }
 
     if (notification.state !== "COMPLETE") return;
 
+    if (linkedOrderId) {
+      try {
+        await paymentService.markOrderCancelledByEscrowAgreement(agreement.id);
+      } catch (error) {
+        console.error("Failed to mark order as CANCELLED after refund:", error);
+      }
+
+      await supabase
+        .from("escrow_agreements")
+        .update({ status: "CLOSED" })
+        .eq("id", agreement.id);
+
+      return;
+    }
+
     await supabase
       .from("escrow_agreements")
       .delete()
       .eq("id", agreement.id);
+
+    return;
   }
 
   if (transactionToUpdate.transaction_type === "DEPOSIT_PAYMENT") {

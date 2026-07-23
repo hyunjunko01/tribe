@@ -430,7 +430,10 @@ export const createOrderPaymentService = (supabase: SupabaseClient) => {
       await orderService.updateOrderStatus(order.id, "PAID");
     },
 
-    async releasePayment(agreementId: string): Promise<string | undefined> {
+    async releasePayment(
+      agreementId: string,
+      description = "Funds released after delivery proof validation"
+    ): Promise<string | undefined> {
       const agreement = await getAgreementWithWallets(supabase, agreementId);
 
       if (!agreement.circle_contract_id) {
@@ -475,7 +478,7 @@ export const createOrderPaymentService = (supabase: SupabaseClient) => {
         transactionType: "RELEASE_PAYMENT",
         profileId: agreement.beneficiary_wallet.profile_id,
         amount: parsedAmount,
-        description: "Funds released after delivery proof validation",
+        description,
       });
 
       await supabase
@@ -484,6 +487,66 @@ export const createOrderPaymentService = (supabase: SupabaseClient) => {
         .eq("id", agreement.id);
 
       return circleReleaseResponse.data?.id;
+    },
+
+    async refundPayment(
+      agreementId: string,
+      description = "Funds refunded to customer"
+    ): Promise<string | undefined> {
+      const agreement = await getAgreementWithWallets(supabase, agreementId);
+
+      if (!agreement.circle_contract_id) {
+        throw new Error("Escrow agreement has no Circle contract ID");
+      }
+
+      const contractData = await circleContractSdk.getContract({
+        id: agreement.circle_contract_id,
+      });
+
+      if (!contractData.data?.contract.contractAddress) {
+        throw new Error("Could not retrieve contract address");
+      }
+
+      const contractAddress = contractData.data.contract.contractAddress;
+      const amountStr = agreement.terms.amounts?.[0]?.amount;
+
+      if (!amountStr) {
+        throw new Error("Escrow agreement terms missing payment amount");
+      }
+
+      const parsedAmount = parseAmount(amountStr);
+
+      // Store (beneficiary) calls refundByRecipient so funds return to the customer (depositor).
+      const circleRefundResponse =
+        await circleDeveloperSdk.createContractExecutionTransaction({
+          walletId: agreement.beneficiary_wallet.circle_wallet_id,
+          contractAddress,
+          abiFunctionSignature: "refundByRecipient(uint256)",
+          abiParameters: [0],
+          fee: {
+            type: "level",
+            config: {
+              feeLevel: "MEDIUM",
+            },
+          },
+        });
+
+      await agreementService.createTransaction({
+        walletId: agreement.beneficiary_wallet.id,
+        circleTransactionId: circleRefundResponse.data?.id,
+        escrowAgreementId: agreement.id,
+        transactionType: "DEPOSIT_REFUND",
+        profileId: agreement.depositor_wallet.profile_id,
+        amount: parsedAmount,
+        description,
+      });
+
+      await supabase
+        .from("escrow_agreements")
+        .update({ status: "PENDING" })
+        .eq("id", agreement.id);
+
+      return circleRefundResponse.data?.id;
     },
 
     async markOrderCompletedByEscrowAgreement(
@@ -504,6 +567,26 @@ export const createOrderPaymentService = (supabase: SupabaseClient) => {
       }
 
       await orderService.updateOrderStatus(order.id, "COMPLETED");
+    },
+
+    async markOrderCancelledByEscrowAgreement(
+      agreementId: string
+    ): Promise<void> {
+      const { data: order, error } = await supabase
+        .from("orders")
+        .select("id, status")
+        .eq("escrow_agreement_id", agreementId)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(`Failed to find order for escrow: ${error.message}`);
+      }
+
+      if (!order || order.status === "CANCELLED") {
+        return;
+      }
+
+      await orderService.updateOrderStatus(order.id, "CANCELLED");
     },
 
     async getLinkedOrderId(agreementId: string): Promise<string | null> {

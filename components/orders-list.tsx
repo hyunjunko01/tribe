@@ -171,6 +171,25 @@ export function OrdersList({
       "Delivery link ready"
     );
 
+  const resolveDispute = (orderId: string, action: "refund" | "release") =>
+    runAction(
+      orderId,
+      async () => {
+        const res = await fetch(`/api/orders/${orderId}/resolve`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || data.details || "Resolve failed");
+        }
+      },
+      action === "refund"
+        ? "Dispute resolved — refund started"
+        : "Dispute resolved — release started"
+    );
+
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
@@ -260,6 +279,25 @@ export function OrdersList({
                       >
                         Delivery link
                       </Button>
+                    )}
+                    {viewRole === "store" && order.status === "DISPUTED" && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => resolveDispute(order.id, "refund")}
+                        >
+                          Refund customer
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => resolveDispute(order.id, "release")}
+                        >
+                          Release to store
+                        </Button>
+                      </>
                     )}
                     {canCancel && (
                       <Button
