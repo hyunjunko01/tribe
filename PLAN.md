@@ -3,7 +3,7 @@
 > **For agents:** Read this file first when starting a new session.  
 > README = setup & env. **This file = product direction, roadmap, and current status.**
 
-Last updated: 2026-07-23 (Phase 7 admin/arbiter dispute resolve)
+Last updated: 2026-07-23 (Phase 8 integrator tidy-up done)
 
 ---
 
@@ -37,11 +37,11 @@ Work in **phases (§5)** — order matters, calendar weeks do not.
 | 2b    | 5        | Customer / store UI split              | **Done**     |
 | 3a    | 6        | Cancel refund + dispute resolve (store UI, temporary) | **Done** |
 | 3a+   | 7        | Arbiter / admin dispute resolve        | **Done**     |
-| 3b    | 8        | Integrator docs + demo polish          | **Next**     |
+| 3b    | 8        | Integrator docs + demo polish          | **Done**     |
 | 4     | —        | API keys, multi-tenant, production     | Out of scope |
 
 
-**Explicitly deprioritize:** AI prompt tuning (pass once in demo is enough), legacy escrow UI removal (until Phase 8), rider app polish, per-integrator API keys.
+**Explicitly deprioritize:** AI prompt tuning (pass once in demo is enough), deleting unused arc-escrow agreement component files, rider app polish, per-integrator API keys.
 
 **Progress detail:** see **§5 Commit-sized checklist** (one checkbox ≈ one commit).
 
@@ -129,12 +129,24 @@ PENDING_PAYMENT ──pay──▶ PAID ──admit──▶ ADMITTED
 | List disputed orders   | `GET /api/admin/orders?status=DISPUTED` | Admin                      |
 
 
-### Planned endpoints (Phase 8+)
+### Role-prefixed aliases (Phase 8)
+
+Thin re-exports of the canonical handlers above — same auth and domain rules.
 
 
-| Action               | Endpoint                          | Notes                                      |
-| -------------------- | --------------------------------- | ------------------------------------------ |
-| Doc API aliases      | `/api/customer/*`, `/api/store/*` | Optional integrator aliases (Phase 8)      |
+| Client   | Alias | Canonical |
+| -------- | ----- | --------- |
+| Customer | `GET /api/customer/stores` | `GET /api/stores` |
+| Customer | `GET/POST /api/customer/orders` | `GET/POST /api/orders` |
+| Customer | `GET /api/customer/orders/[id]` | `GET /api/orders/[id]` |
+| Customer | `POST /api/customer/orders/[id]/pay` | `POST /api/orders/[id]/pay` |
+| Customer | `POST /api/customer/orders/[id]/cancel` | `POST /api/orders/[id]/cancel` |
+| Store    | `POST /api/store/register` | `POST /api/stores` |
+| Store    | `GET /api/store/orders` | `GET /api/orders` |
+| Store    | `GET /api/store/orders/[id]` | `GET /api/orders/[id]` |
+| Store    | `POST /api/store/orders/[id]/admit` | `POST /api/orders/[id]/admit` |
+| Store    | `POST /api/store/orders/[id]/delivery-link` | `POST /api/orders/[id]/delivery-link` |
+| Store    | `POST /api/store/orders/[id]/cancel` | `POST /api/orders/[id]/cancel` |
 
 
 ---
@@ -251,10 +263,13 @@ One row ≈ one focused commit. Pick the **first unchecked** item when starting 
 
 | ✓   | Task                                                   | Commit | Suggested message                                      |
 | --- | ------------------------------------------------------ | ------ | ------------------------------------------------------ |
-| [ ] | `docs/INTEGRATION.md` — Customer vs Store flows        | —      | `Add integrator guide for customer and store clients.` |
-| [ ] | Optional `/api/customer/*`, `/api/store/*` doc aliases | —      | `Add customer and store API route aliases.`            |
-| [ ] | Hide legacy escrow agreements on dashboard             | —      | `Hide legacy escrow UI from dashboard.`                |
-| [ ] | Final README + integration doc sync with shipped API   | —      | `Update docs for middleware demo flow.`                |
+| [x] | `docs/INTEGRATION.md` — Customer vs Store flows        | —      | `Add integrator guide for customer and store clients.` |
+| [x] | Optional `/api/customer/*`, `/api/store/*` doc aliases | —      | `Add customer and store API route aliases.`            |
+| [x] | Hide legacy escrow agreements on dashboard             | —      | `Hide legacy escrow UI from dashboard.`                |
+| [x] | Final README + integration doc sync with shipped API   | —      | `Update docs for middleware demo flow.`                |
+
+
+> **Legacy UI note:** Agreement upload/list components from arc-escrow remain in the repo but are **not mounted** on any dashboard route. Landing + nav branding retargeted to Tribe (paper-contract copy removed). Full file deletion is optional cleanup later.
 
 
 ---
@@ -270,7 +285,10 @@ One row ≈ one focused commit. Pick the **first unchecked** item when starting 
 | 5     | UI split              | **Done**                       |
 | 6     | Refund & dispute      | **Done** (store resolve was temporary) |
 | 7     | Arbiter / admin dispute | **Done**                             |
-| 8     | Integrator docs       | **Next** ← pick up here                |
+| 8     | Integrator docs       | **Done**                               |
+
+
+Hackathon Level 3 skeleton is complete. Optional next: visual frontend polish / recorded E2E demo.
 
 
 ---
@@ -284,7 +302,7 @@ One row ≈ one focused commit. Pick the **first unchecked** item when starting 
 | **5**    | UI split         | Two accounts → store registers → customer orders from store list → store admits from **store dashboard** | Done     |
 | **6**    | Refund & dispute | Bad proof → `DISPUTED` → resolve refund to customer (on-chain); store UI OK for demo                     | Done     |
 | **7**    | Arbiter resolve  | `DISPUTED` → **admin/arbiter** refund or release; store cannot settle                                    | **Done** |
-| **8**    | Integrator story | Recorded E2E demo + integration doc; can pitch “middleware skeleton”                                     | **Next** |
+| **8**    | Integrator story | Recorded E2E demo + integration doc; can pitch “middleware skeleton”                                     | **Done** |
 
 
 ---
@@ -318,6 +336,9 @@ One row ≈ one focused commit. Pick the **first unchecked** item when starting 
 | ---------------------- | ---------------------------------------------------------------- |
 | Plan (this file)       | `PLAN.md`                                                        |
 | Setup                  | `README.md`                                                      |
+| Integrator guide       | `docs/INTEGRATION.md`                                            |
+| Customer API aliases   | `app/api/customer/**`                                            |
+| Store API aliases      | `app/api/store/**`                                               |
 | Stores migration       | `supabase/migrations/20260722165000_create_stores_table.sql`     |
 | Store service / API    | `app/services/store.service.ts`, `app/api/stores/route.ts`       |
 | Order APIs             | `app/api/orders/**`                                              |
@@ -367,6 +388,7 @@ Why not merchant? Payment/PG jargon (Stripe-style). Our domain is delivery — �
 | 2026-07-22 | **Progress tracked in commit-sized checklist (§5)**                      |
 | 2026-07-23 | **`DISPUTED` should be settled by admin/arbiter**, not store (store resolve = temporary demo) |
 | 2026-07-23 | Phase 7 = admin dispute UI/API; former integrator docs phase renumbered to Phase 8 |
+| 2026-07-23 | Phase 8 done: INTEGRATION.md, customer/store aliases, hide legacy demo surface, README sync |
 
 
 ---
@@ -380,4 +402,4 @@ Why not merchant? Payment/PG jargon (Stripe-style). Our domain is delivery — �
 5. After shipping, check the box in §5 (PLAN.md edits do not need their own commit)
 6. Do not commit unless the user asks
 
-**Next code commit:** Phase 8 — `Add integrator guide for customer and store clients.`
+**Next code commit:** Optional — frontend visual polish, or delete unused arc-escrow agreement UI files.

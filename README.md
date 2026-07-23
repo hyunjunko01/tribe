@@ -1,34 +1,40 @@
 # tribe
 
-USDC escrow for delivery orders on [Arc](https://www.arc.network/) testnet. Tribe locks payment between a **customer** and a **store** until delivery is confirmed. Riders stay off-chain (existing web2 tools); they submit a delivery photo via a one-time link. An AI agent checks the proof, then completes or freezes the order for human review.
+USDC escrow for delivery orders on [Arc](https://www.arc.network/) testnet. Tribe is **delivery-app middleware**: it locks payment between a **customer** and a **store** until delivery is confirmed. Riders stay off-chain; they submit a delivery photo via a one-time link. AI checks the proof, then completes the order or freezes it for an **admin / arbiter**.
 
 Built with Next.js, Supabase, Circle Developer Controlled Wallets, and OpenAI. Based on Circle’s [arc-escrow](https://github.com/circlefin/arc-escrow) sample.
 
+**Integrator guide:** [docs/INTEGRATION.md](docs/INTEGRATION.md) — Customer vs Store API flows (plus `/api/customer/*` and `/api/store/*` aliases).  
+**Roadmap / status:** [PLAN.md](PLAN.md)
+
 ## Table of Contents
 
-- [MVP Flow](#mvp-flow)
+- [Demo Flow](#demo-flow)
 - [Roles](#roles)
+- [Demo Routes](#demo-routes)
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
 - [How It Works](#how-it-works)
+- [API Surface](#api-surface)
 - [Environment Variables](#environment-variables)
 - [User Accounts](#user-accounts)
 - [Security & Usage Model](#security--usage-model)
 - [Attribution](#attribution)
 
-## MVP Flow
+## Demo Flow
 
-1. **Customer creates an order** and pays USDC into escrow right away.
-2. **Store admits** the paid order (or the order can be cancelled / timed out and refunded).
-3. Store prepares the order and calls a rider with existing web2 methods.
-4. **Rider uploads delivery evidence** (photo) via a secure link — no full rider account required.
-5. **AI validates** the photo.
-  - Pass → `completeOrder` → funds released to the store (`withdraw`).
-  - Fail → order status freezes as **disputed**; a human arbiter resolves it (complete or refund).
-6. **Cancel** is supported before delivery starts (e.g. customer cancels before store admits, or store cannot fulfill).
+1. **Store** registers (`POST /api/store/register` or `/api/stores`).
+2. **Customer** lists stores, creates an order, and pays USDC into escrow.
+3. **Store** admits the paid order and issues a rider delivery link.
+4. **Rider** opens `/deliver?token=…` and uploads a photo (no account).
+5. **AI** validates the photo.
+   - Pass → funds released to the store → `COMPLETED`
+   - Fail → order freezes as `DISPUTED`
+6. **Admin** resolves disputes (`refund` | `release`) via `/dashboard/admin`.
+7. **Cancel** is supported before `IN_DELIVERY` (refunds escrow when already paid).
 
-> On-chain money movement is customer ↔ store only. The rider is an off-chain participant in the MVP.
+> On-chain money movement is customer ↔ store. The rider is off-chain. Dispute settlement is admin/arbiter, not the store.
 
 ## Roles
 
@@ -36,9 +42,21 @@ Built with Next.js, Supabase, Circle Developer Controlled Wallets, and OpenAI. B
 | Role                   | Escrow mapping | Responsibility                                        |
 | ---------------------- | -------------- | ----------------------------------------------------- |
 | Customer               | Depositor      | Creates order, pays into escrow, may cancel early     |
-| Store                  | Beneficiary    | Admits order, fulfills, receives USDC on success      |
+| Store                  | Beneficiary    | Registers, admits, fulfills, receives USDC on success |
 | Rider                  | Off-chain      | Delivers and uploads proof via link                   |
-| Arbiter (agent wallet) | Arbiter        | Deploys escrow contracts; refunds / resolves disputes |
+| Admin / arbiter        | Arbiter wallet | Resolves `DISPUTED` (`refund` \| `release`)           |
+
+
+## Demo Routes
+
+
+| Role     | Path                   |
+| -------- | ---------------------- |
+| Home     | `/dashboard`           |
+| Customer | `/dashboard/customer`  |
+| Store    | `/dashboard/store`     |
+| Admin    | `/dashboard/admin`     |
+| Rider    | `/deliver?token=…`     |
 
 
 ## Tech Stack
@@ -83,27 +101,40 @@ Built with Next.js, Supabase, Circle Developer Controlled Wallets, and OpenAI. B
    The output of `npx supabase start` will display the Supabase URL and API keys needed for your `.env.local`.
   **Path 2: Remote Supabase (Cloud)**
    Requires a [Supabase](https://supabase.com/) account and project.
-   Retrieve your project URL and API keys from the Supabase dashboard under **Settings → API**.
+   Retrieve your project URL and API keys from the Supabase dashboard under **Settings → API**. Apply migrations (including `stores` and `orders`) to the remote project.
 5. Start the development server:
   ```bash
    npm run dev
   ```
    The app will be available at `http://localhost:3000`.
 6. Set up Circle Webhooks (for local development):
-  In a separate terminal, expose your local server:
-   Copy the HTTPS URL from ngrok and configure a webhook in the Circle Console:
-  - Navigate to [Circle Console → Webhooks](https://console.circle.com/webhooks)
-  - Add a new webhook endpoint: `https://your-ngrok-url.ngrok.io/api/webhooks/circle`
+  In a separate terminal, expose your local server with ngrok, then configure a webhook in the Circle Console:
+  - [Circle Console → Webhooks](https://console.circle.com/webhooks)
+  - Endpoint: `https://your-ngrok-url.ngrok.io/api/webhooks/circle`
   - Keep ngrok running while developing to receive webhook events
+7. (Optional) Add your `profiles.id` to `ADMIN_PROFILE_IDS` for dispute resolve, then restart the server.
 
 ## How It Works
 
-- Each order can deploy a Refund Protocol escrow contract on Arc testnet (via Circle Smart Contract Platform).
+- Each order deploys a Refund Protocol escrow contract on Arc testnet (via Circle Smart Contract Platform).
 - Customer deposits USDC with `pay()`; store receives funds with `withdraw()` after successful validation.
-- Refunds / dispute resolution use arbiter or recipient refund functions on the same contract.
+- Cancel (when paid) uses `refundByRecipient`; admin dispute refund uses `refundByArbiter`.
 - Delivery proof is uploaded off-chain (Supabase Storage); OpenAI validates the image.
-- If AI rejects the proof, the order is marked **disputed** (funds stay in escrow) until a human decides.
+- If AI rejects the proof, the order is marked **disputed** until an admin resolves it.
 - Circle webhooks update transaction and order status in real time.
+
+## API Surface
+
+Canonical routes live under `/api/orders` and `/api/stores`. Integrators can also use role-prefixed aliases (same handlers):
+
+| Client   | Prefer | Also works |
+| -------- | ------ | ---------- |
+| Customer | `/api/customer/stores`, `/api/customer/orders/...` | `/api/stores`, `/api/orders/...` |
+| Store    | `/api/store/register`, `/api/store/orders/...` | `/api/stores`, `/api/orders/...` |
+| Admin    | `/api/admin/orders?status=DISPUTED`, `/api/orders/:id/resolve` | — |
+| Rider    | `/api/orders/proof?token=…` | — |
+
+Full request/response details: [docs/INTEGRATION.md](docs/INTEGRATION.md).
 
 ## Environment Variables
 
@@ -132,6 +163,9 @@ CIRCLE_BLOCKCHAIN=
 
 # OpenAI
 OPENAI_API_KEY=
+
+# Admin / arbiter (comma-separated profiles.id UUIDs)
+ADMIN_PROFILE_IDS=
 ```
 
 
@@ -148,6 +182,7 @@ OPENAI_API_KEY=
 | `CIRCLE_ENTITY_SECRET`              | Server-side | Circle entity secret for signing transactions.                       |
 | `CIRCLE_BLOCKCHAIN`                 | Server-side | Blockchain network identifier (e.g., `ARC-TESTNET`). Auto-generated. |
 | `OPENAI_API_KEY`                    | Server-side | OpenAI API key for AI delivery-proof validation.                     |
+| `ADMIN_PROFILE_IDS`                 | Server-side | Comma-separated `profiles.id` UUIDs allowed to resolve disputes.     |
 
 
 **Do not commit** `.env.local`, API keys, entity secrets, or Circle recovery files.
@@ -157,6 +192,8 @@ OPENAI_API_KEY=
 ### Default Account
 
 On first visit, sign up with any email and password. During development, the same user can act as customer (depositor) or store (beneficiary) across different orders.
+
+To act as **admin / arbiter**, put that account’s `profiles.id` in `ADMIN_PROFILE_IDS` (comma-separated if multiple), restart the server, then open `/dashboard/admin`.
 
 ### Signup Rate Limits
 
@@ -172,7 +209,7 @@ This project:
 - Targets **Arc testnet** only for the hackathon MVP
 - Stores secrets in environment variables (never in the repo)
 - Verifies Circle webhook signatures
-- Is **not** production-ready without further hardening
+- Is **not** production-ready without further hardening (API keys, multi-tenant isolation = Level 4 / out of scope)
 
 ## Attribution
 
