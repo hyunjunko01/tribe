@@ -37,8 +37,9 @@ const defaultUrl = process.env.NEXT_PUBLIC_VERCEL_URL
 
 export const metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Workflow Escrow",
-  description: "Automated escrow agent that facilitates secure transactions",
+  title: "Tribe",
+  description:
+    "Delivery escrow middleware on Arc — USDC lock, proof, and settlement",
 };
 
 export default async function RootLayout({
@@ -66,7 +67,7 @@ export default async function RootLayout({
                     href={"/"}
                     className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-amber-600 font-bold text-lg hover:opacity-80 transition-opacity"
                   >
-                    Workflow Escrow
+                    Tribe
                   </Link>
                   <div className="flex items-center gap-2"></div>
                 </div>

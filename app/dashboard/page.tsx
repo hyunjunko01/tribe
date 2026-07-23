@@ -36,11 +36,12 @@ export default async function DashboardPage() {
         <h1 className="scroll-m-20 text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           Choose a role for this session. The same account can act as customer or store on
-          different orders.
+          different orders. Admin resolve requires{" "}
+          <code className="text-xs">ADMIN_PROFILE_IDS</code>.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 max-w-2xl">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-4xl">
         <Card>
           <CardHeader>
             <CardTitle>Customer</CardTitle>
@@ -65,6 +66,20 @@ export default async function DashboardPage() {
           <CardContent>
             <Button asChild>
               <Link href="/dashboard/store">Open store dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Admin</CardTitle>
+            <CardDescription>
+              Resolve disputed orders with arbiter refund or release to store.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/admin">Open admin dashboard</Link>
             </Button>
           </CardContent>
         </Card>
