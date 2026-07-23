@@ -16,20 +16,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export interface DocumentAnalysis {
-  amounts: Array<{
-    full_amount: string;
-    payment_for: string;
-    location: string;
-  }>;
-  tasks: Array<{
-    task_description: string;
-    due_date: string | null;
-    responsible_party: string;
-    additional_details: string;
-  }>;
-}
-
 export interface EscrowAgreement {
   id: string;
   beneficiary_wallet_id: string;
@@ -50,40 +36,10 @@ export interface EscrowAgreement {
     }>;
     documentUrl?: string;
     originalFileName?: string;
+    orderId?: string;
+    items?: unknown[];
   };
   created_at: string;
   updated_at: string;
-  // Wallet relationships
-  depositor_wallet: {
-    profile_id: string;
-    wallet_address: string;
-    profiles: {
-      name: string;
-    };
-  };
-  beneficiary_wallet: {
-    profile_id: string;
-    wallet_address: string;
-    profiles: {
-      name: string;
-    };
-  };
-  transactions: {
-    amount: number;
-    currency: string;
-    status: string;
-    circle_contract_address: string;
-  };
-}
-
-
-export interface CreateAgreementProps {
-  beneficiaryWalletId?: string;
-  depositorWalletId?: string;
-  userId: string;
-  userProfileId?: string;
-  onAnalysisComplete?: (
-    analysis: DocumentAnalysis,
-    agreement: EscrowAgreement
-  ) => void;
+  circle_contract_id?: string | null;
 }
