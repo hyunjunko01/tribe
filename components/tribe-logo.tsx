@@ -16,17 +16,31 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DashboardNav } from "@/components/dashboard-nav";
+import { cn } from "@/lib/utils";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+type TribeLogoProps = {
+  className?: string;
+  /** Display width in px (height follows SVG aspect). */
+  size?: number;
+  priority?: boolean;
+};
+
+export function TribeLogo({
+  className,
+  size = 40,
+  priority,
+}: TribeLogoProps) {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8 pt-24">
-      <DashboardNav />
-      {children}
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element -- SVG logo from /public
+    <img
+      src="/logo.svg"
+      alt="Tribe"
+      width={size}
+      height={Math.round(size * (310 / 570))}
+      decoding="async"
+      fetchPriority={priority ? "high" : undefined}
+      className={cn("block max-w-none select-none", className)}
+      style={{ width: size, height: "auto" }}
+    />
   );
 }

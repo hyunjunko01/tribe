@@ -16,176 +16,317 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from "react";
+"use client";
+
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import {
-  Shield,
-  Zap,
-  CheckCircle,
-  Wallet,
-  ShoppingBag,
-  Bike,
-  Lock,
-  Scale,
-} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { TribeLogo } from "@/components/tribe-logo";
+import { cn } from "@/lib/utils";
 
-const LandingPage = () => {
-  return (
-    <div className="flex flex-col items-center w-full px-5">
-      <section className="w-full max-w-6xl space-y-16 py-8">
-        <div className="flex flex-col items-center gap-8">
-          <div className="relative">
-            <div className="flex items-center justify-center gap-4 mb-4">
-              <Shield className="w-8 h-8 text-blue-500" />
-              <Zap className="w-8 h-8 text-amber-500" />
-            </div>
-            <p className="text-4xl md:text-5xl lg:text-6xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-amber-600 leading-tight">
-              Tribe
-            </p>
-            <p className="mt-4 text-xl md:text-2xl text-center text-muted-foreground max-w-2xl mx-auto">
-              Delivery escrow middleware on Arc — USDC lock, proof, and settlement
-              for customer and store clients.
-            </p>
-          </div>
+const SECTION_COUNT = 3;
+/** Page transition duration (ms) — slower than native smooth scroll */
+const PAGE_SCROLL_MS = 950;
 
-          <div className="flex flex-wrap justify-center gap-8 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span>USDC on Arc testnet</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <span>AI delivery proof</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span>Arbiter dispute resolve</span>
-            </div>
-          </div>
-        </div>
+const BEATS = [
+  {
+    n: "01",
+    title: "Pay",
+    body: "Customer USDC locks in escrow when the order is paid",
+  },
+  {
+    n: "02",
+    title: "Prove",
+    body: "Rider uploads a photo via one-time link; AI checks delivery",
+  },
+  {
+    n: "03",
+    title: "Settle",
+    body: "Pass releases to the store; dispute → admin refund or release",
+  },
+] as const;
 
-        <section className="w-full space-y-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-center">
-            Built for delivery platforms
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard
-              icon={<ShoppingBag className="w-8 h-8 text-blue-500" />}
-              title="Customer & store APIs"
-              description="Integrators keep identity and UX. Tribe owns pay, admit, cancel, and settle."
-            />
-            <FeatureCard
-              icon={<Lock className="w-8 h-8 text-green-500" />}
-              title="Escrow until delivery"
-              description="Customer USDC stays locked until proof passes or an arbiter decides."
-            />
-            <FeatureCard
-              icon={<Wallet className="w-8 h-8 text-amber-500" />}
-              title="Release or refund"
-              description="Happy path releases to the store; disputes refund or release via admin."
-            />
-          </div>
-        </section>
-      </section>
-
-      <section className="w-full bg-gradient-to-b from-background to-muted/50 py-16">
-        <div className="max-w-5xl mx-auto space-y-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-center">
-            How It Works
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-start px-5">
-            <div className="flex flex-col items-center text-center">
-              <div className="bg-blue-100 dark:bg-blue-900/50 rounded-full p-4 mb-4">
-                <ShoppingBag className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Create & pay</h3>
-              <p className="text-sm text-muted-foreground">
-                Customer picks a registered store and pays USDC into escrow.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center text-center">
-              <div className="bg-green-100 dark:bg-green-900/50 rounded-full p-4 mb-4">
-                <Bike className="w-8 h-8 text-green-600 dark:text-green-400" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Deliver & prove</h3>
-              <p className="text-sm text-muted-foreground">
-                Store admits, issues a rider link; rider uploads a photo — no account.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center text-center">
-              <div className="bg-yellow-100 dark:bg-yellow-900/50 rounded-full p-4 mb-4">
-                <CheckCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">AI checks proof</h3>
-              <p className="text-sm text-muted-foreground">
-                Pass releases funds to the store; fail freezes the order as disputed.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center text-center">
-              <div className="bg-purple-100 dark:bg-purple-900/50 rounded-full p-4 mb-4">
-                <Scale className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Arbiter settles</h3>
-              <p className="text-sm text-muted-foreground">
-                Admin refunds the customer or releases to the store when needed.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="w-full max-w-5xl py-16 space-y-8">
-        <div className="text-center space-y-4">
-          <h2 className="text-3xl md:text-4xl font-bold">
-            Try the middleware demo
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            Sign up, open customer or store dashboards, and run an order end to end.
-          </p>
-        </div>
-        <div className="flex justify-center gap-3 flex-wrap">
-          <Link href="/sign-up">
-            <Button size="lg">Get started</Button>
-          </Link>
-          <Link href="/sign-in">
-            <Button size="lg" variant="outline">
-              Sign in
-            </Button>
-          </Link>
-        </div>
-      </section>
-
-      <footer className="w-full border-t border-border py-8">
-        <div className="max-w-5xl mx-auto px-5 text-center text-sm text-muted-foreground">
-          Tribe — delivery escrow middleware. Built on Circle’s arc-escrow sample.
-        </div>
-      </footer>
-    </div>
-  );
-};
-
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
+function easeInOutCubic(t: number) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-const FeatureCard: React.FC<FeatureCardProps> = ({
-  icon,
-  title,
-  description,
-}) => {
-  return (
-    <div className="bg-card p-6 rounded-lg border border-border">
-      <div className="flex items-center justify-center mb-4">{icon}</div>
-      <h3 className="text-xl font-semibold text-center mb-2">{title}</h3>
-      <p className="text-muted-foreground text-center">{description}</p>
-    </div>
-  );
-};
+function animateScrollTo(
+  scroller: HTMLElement,
+  top: number,
+  duration: number
+) {
+  const start = scroller.scrollTop;
+  const delta = top - start;
+  if (Math.abs(delta) < 1) {
+    return Promise.resolve();
+  }
 
-export default LandingPage;
+  scroller.classList.add("is-paging");
+  const startTime = performance.now();
+
+  return new Promise<void>((resolve) => {
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startTime) / duration);
+      scroller.scrollTop = start + delta * easeInOutCubic(t);
+      if (t < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        scroller.scrollTop = top;
+        scroller.classList.remove("is-paging");
+        resolve();
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+function useRevealOnScroll<T extends HTMLElement>(root: HTMLElement | null) {
+  const ref = useRef<T | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          el.classList.add("is-visible");
+          observer.unobserve(el);
+        }
+      },
+      { root: root ?? undefined, threshold: 0.2 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [root]);
+
+  return ref;
+}
+
+export default function LandingPage({ demoHref }: { demoHref: string }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [scrollerEl, setScrollerEl] = useState<HTMLDivElement | null>(null);
+  const [page, setPage] = useState(0);
+  const pageRef = useRef(0);
+  const pagingRef = useRef(false);
+
+  const storyRef = useRevealOnScroll<HTMLElement>(scrollerEl);
+  const demoRef = useRevealOnScroll<HTMLElement>(scrollerEl);
+
+  const setScrollerNode = useCallback((node: HTMLDivElement | null) => {
+    scrollerRef.current = node;
+    setScrollerEl(node);
+  }, []);
+
+  const goToPage = useCallback(async (nextIndex: number) => {
+    const scroller = scrollerRef.current;
+    if (!scroller || pagingRef.current) return;
+
+    const clamped = Math.min(SECTION_COUNT - 1, Math.max(0, nextIndex));
+    if (clamped === pageRef.current) return;
+
+    pagingRef.current = true;
+    pageRef.current = clamped;
+    setPage(clamped);
+
+    await animateScrollTo(
+      scroller,
+      clamped * scroller.clientHeight,
+      PAGE_SCROLL_MS
+    );
+    pagingRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    let touchStartY = 0;
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      if (pagingRef.current) return;
+      if (Math.abs(event.deltaY) < 8) return;
+
+      const dir = event.deltaY > 0 ? 1 : -1;
+      void goToPage(pageRef.current + dir);
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      touchStartY = event.touches[0]?.clientY ?? 0;
+    };
+
+    const onTouchEnd = (event: TouchEvent) => {
+      if (pagingRef.current) return;
+      const endY = event.changedTouches[0]?.clientY ?? touchStartY;
+      const dy = touchStartY - endY;
+      if (Math.abs(dy) < 48) return;
+      void goToPage(pageRef.current + (dy > 0 ? 1 : -1));
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowDown" || event.key === "PageDown") {
+        event.preventDefault();
+        void goToPage(pageRef.current + 1);
+      } else if (event.key === "ArrowUp" || event.key === "PageUp") {
+        event.preventDefault();
+        void goToPage(pageRef.current - 1);
+      }
+    };
+
+    scroller.addEventListener("wheel", onWheel, { passive: false });
+    scroller.addEventListener("touchstart", onTouchStart, { passive: true });
+    scroller.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      scroller.removeEventListener("wheel", onWheel);
+      scroller.removeEventListener("touchstart", onTouchStart);
+      scroller.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [scrollerEl, goToPage]);
+
+  const showArrow = page < SECTION_COUNT - 1;
+
+  return (
+    <>
+      <div ref={setScrollerNode} className="landing-page w-full text-black">
+        {/* Section 1 — Hero */}
+        <section className="landing-section landing-hero relative flex flex-col items-center justify-center px-6">
+          <div
+            aria-hidden
+            className="landing-grid pointer-events-none absolute inset-0"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.06)_100%)]"
+          />
+
+          <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center text-center">
+            <div className="landing-hero-enter">
+              <TribeLogo size={360} priority />
+            </div>
+            <h1 className="landing-hero-enter landing-hero-enter-delay-1 mt-6 text-xl font-medium tracking-tight text-neutral-800 sm:text-2xl md:text-3xl">
+              Delivery escrow middleware
+            </h1>
+            <p className="landing-hero-enter landing-hero-enter-delay-2 mt-4 max-w-xl text-sm leading-relaxed text-neutral-600 sm:text-base">
+              USDC lock, AI delivery proof, and arbiter settlement on Arc — for
+              platforms that already own the app
+            </p>
+            <div className="landing-hero-enter landing-hero-enter-delay-3 mt-10 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href={demoHref}
+                className="inline-flex h-11 items-center justify-center bg-black px-6 text-sm font-semibold text-white transition-opacity hover:opacity-80"
+              >
+                Try the demo
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 2 — Pay · Prove · Settle */}
+        <section
+          ref={storyRef}
+          className="landing-section landing-reveal relative flex flex-col items-center justify-center bg-black px-6 py-24 text-white"
+        >
+          <div className="mx-auto w-full max-w-5xl">
+            <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+              Pay · Prove · Settle
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-sm text-neutral-400 sm:text-base">
+              Integrators keep identity, menus, and riders. Tribe owns the
+              payment lifecycle.
+            </p>
+
+            <div className="mt-16 grid gap-10 md:grid-cols-3 md:gap-0">
+              {BEATS.map((beat, index) => (
+                <div
+                  key={beat.title}
+                  className="landing-beat relative px-2 md:px-8"
+                  style={{ transitionDelay: `${120 + index * 120}ms` }}
+                >
+                  {index > 0 && (
+                    <div
+                      aria-hidden
+                      className="absolute left-0 top-0 hidden h-full w-px bg-neutral-700 md:block"
+                    />
+                  )}
+                  <p className="text-xs font-medium tracking-[0.2em] text-neutral-500">
+                    {beat.n}
+                  </p>
+                  <h3 className="mt-3 text-2xl font-semibold tracking-tight">
+                    {beat.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-neutral-400">
+                    {beat.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Section 3 — Demo video */}
+        <section
+          ref={demoRef}
+          className="landing-section landing-reveal flex flex-col items-center justify-center bg-white px-6 py-24"
+        >
+          <div className="mx-auto flex w-full max-w-3xl flex-col items-center">
+            <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
+              See the full order path
+            </h2>
+            <p className="mt-4 max-w-xl text-center text-sm text-neutral-600 sm:text-base">
+              Watch the escrow flow, or open a live role dashboard.
+            </p>
+
+            <div className="landing-demo-media mt-12 w-full max-w-2xl">
+              <div className="flex aspect-video w-full flex-col items-center justify-center border border-neutral-300 bg-neutral-50">
+                <p className="text-sm font-medium tracking-wide text-neutral-800">
+                  Demo video coming soon
+                </p>
+                <p className="mt-2 max-w-sm px-4 text-center text-xs text-neutral-500">
+                  End-to-end: store admit → customer pay → rider proof → settle
+                  or dispute
+                </p>
+              </div>
+            </div>
+
+            <footer className="mt-12 text-center text-xs text-neutral-500">
+              Built on Circle’s arc-escrow sample · Arc testnet
+            </footer>
+          </div>
+        </section>
+      </div>
+
+      {showArrow && (
+        <button
+          type="button"
+          onClick={() => void goToPage(page + 1)}
+          aria-label="다음 페이지로 이동"
+          className={cn(
+            "landing-scroll-hint fixed bottom-8 left-1/2 z-50 -translate-x-1/2 p-2 transition-colors",
+            page === 1
+              ? "text-neutral-400 hover:text-white"
+              : "text-neutral-400 hover:text-black"
+          )}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden
+          >
+            <path
+              d="M4 7.5L10 13.5L16 7.5"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
+    </>
+  );
+}

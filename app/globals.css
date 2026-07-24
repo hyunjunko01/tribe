@@ -75,6 +75,7 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+
   body {
     letter-spacing: var(--tracking-normal);
   }
@@ -84,6 +85,7 @@
   * {
     border-color: hsl(var(--border));
   }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
@@ -212,6 +214,135 @@
   --shadow-xl: 0px 2px 3px 0px hsl(28 18% 25% / 0.18), 0px 8px 10px -1px hsl(28 18% 25% / 0.18);
   --shadow-2xl: 0px 2px 3px 0px hsl(28 18% 25% / 0.45);
   --tracking-normal: 0em;
+}
+
+/* Landing pitch — B&W full-page snap + motion */
+html:has(.landing-page),
+body:has(.landing-page) {
+  overflow: hidden;
+  height: 100%;
+}
+
+.landing-page {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: none;
+  scroll-snap-type: y mandatory;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.landing-page.is-paging {
+  scroll-snap-type: none;
+  pointer-events: none;
+}
+
+.landing-section {
+  box-sizing: border-box;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.landing-hero {
+  background-color: #ffffff;
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-hero-enter {
+  animation: landing-rise 0.55s ease-out both;
+}
+
+.landing-hero-enter-delay-1 {
+  animation-delay: 0.1s;
+}
+
+.landing-hero-enter-delay-2 {
+  animation-delay: 0.2s;
+}
+
+.landing-hero-enter-delay-3 {
+  animation-delay: 0.32s;
+}
+
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.6s ease-out,
+    transform 0.6s ease-out;
+}
+
+.landing-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.landing-reveal.is-visible .landing-beat {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: landing-rise 0.5s ease-out forwards;
+}
+
+.landing-reveal.is-visible .landing-demo-media {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: landing-rise 0.55s ease-out 0.12s forwards;
+}
+
+@keyframes landing-scroll-nudge {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, 5px);
+  }
+}
+
+.landing-scroll-hint {
+  animation: landing-scroll-nudge 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-enter,
+  .landing-reveal,
+  .landing-reveal.is-visible .landing-beat,
+  .landing-reveal.is-visible .landing-demo-media {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .landing-scroll-hint {
+    animation: none;
+    transform: translateX(-50%);
+  }
 }
 
 .dark {

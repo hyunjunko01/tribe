@@ -22,6 +22,8 @@ export default async function Layout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="max-w-7xl flex flex-col items-center">{children}</div>
+    <div className="mx-auto flex w-full max-w-7xl flex-col items-center px-4 pt-24 pb-10">
+      {children}
+    </div>
   );
 }
