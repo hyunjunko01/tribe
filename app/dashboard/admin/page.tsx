@@ -31,7 +31,8 @@ export default async function AdminDashboardPage() {
           Admin dashboard
         </h1>
         <p className="text-muted-foreground mt-1">
-          Resolve disputed orders as the platform arbiter.
+          Disputed queue first — refund the customer or release funds to the
+          store.
         </p>
       </div>
 

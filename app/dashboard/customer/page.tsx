@@ -28,7 +28,7 @@ export default async function CustomerDashboardPage() {
       <div className="mb-6">
         <h1 className="scroll-m-20 text-3xl font-bold tracking-tight">Customer dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          Create orders and track deliveries as a customer.
+          Pick a registered store, create an order, then pay into escrow.
         </p>
       </div>
 

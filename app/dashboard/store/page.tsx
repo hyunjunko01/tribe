@@ -28,7 +28,8 @@ export default async function StoreDashboardPage() {
       <div className="mb-6">
         <h1 className="scroll-m-20 text-3xl font-bold tracking-tight">Store dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          Register your store, admit orders, and manage deliveries.
+          Register once, then admit orders, issue delivery links, or cancel.
+          Disputed orders are view-only — admin settles.
         </p>
       </div>
 

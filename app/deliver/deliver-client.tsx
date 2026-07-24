@@ -28,6 +28,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -106,23 +107,26 @@ export default function DeliverClient() {
   };
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-lg items-center px-4 py-10">
+    <div className="mx-auto flex min-h-[70vh] max-w-lg items-center px-4 py-10 pt-24">
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Upload delivery proof</CardTitle>
+          <CardDescription>
+            One photo. No account. Happy path completes the order; a bad photo
+            opens a dispute for admin.
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {!token ? (
-              <p className="text-sm text-red-500">
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 This link is missing a delivery token. Ask the store for a new
                 link.
-              </p>
+              </div>
             ) : (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Take a clear photo of the delivered order, then submit. No
-                  login required.
+                  Take a clear photo of the delivered order, then submit.
                 </p>
                 <div className="flex flex-col space-y-1.5">
                   <Label htmlFor="proof-file">Photo (JPEG or PNG)</Label>
@@ -136,19 +140,31 @@ export default function DeliverClient() {
                 </div>
                 {message && (
                   <div
+                    role="status"
                     className={
                       state === "success"
-                        ? "rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800"
-                        : "rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+                        ? "rounded-md border border-border bg-muted/50 p-3 text-sm"
+                        : "rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm"
                     }
                   >
-                    <p>{message}</p>
+                    <p className="font-medium">
+                      {state === "success"
+                        ? "Proof accepted"
+                        : "Proof rejected"}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">{message}</p>
                     {reasons.length > 0 && (
-                      <ul className="mt-2 list-disc pl-5">
+                      <ul className="mt-2 list-disc pl-5 text-muted-foreground">
                         {reasons.map((reason) => (
                           <li key={reason}>{reason}</li>
                         ))}
                       </ul>
+                    )}
+                    {state === "rejected" && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        You can choose another photo and try again, or the store
+                        / admin will handle a dispute.
+                      </p>
                     )}
                   </div>
                 )}

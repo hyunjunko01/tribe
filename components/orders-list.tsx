@@ -84,6 +84,58 @@ function orderPartiesLabel(
   return order.customer_profile?.name || "Customer";
 }
 
+function nextStepHint(
+  order: OrderWithProfiles,
+  viewRole: OrderListViewRole
+): string | null {
+  if (viewRole === "customer") {
+    switch (order.status) {
+      case "PENDING_PAYMENT":
+        return "Next: pay into escrow";
+      case "PAID":
+        return "Waiting for the store to admit";
+      case "ADMITTED":
+      case "IN_DELIVERY":
+        return "Waiting for delivery proof";
+      case "DISPUTED":
+        return "Waiting for admin to resolve";
+      case "COMPLETED":
+        return "Settled — funds released to store";
+      case "CANCELLED":
+        return "Order cancelled";
+      default:
+        return null;
+    }
+  }
+
+  if (viewRole === "store") {
+    switch (order.status) {
+      case "PAID":
+        return "Next: admit this order";
+      case "ADMITTED":
+        return "Next: create a delivery link for the rider";
+      case "IN_DELIVERY":
+        return order.delivery_proof_url
+          ? "Proof submitted — waiting for AI check"
+          : "Waiting for rider photo upload";
+      case "DISPUTED":
+        return "View only — admin resolves refund or release";
+      case "COMPLETED":
+        return "Settled — funds released";
+      case "CANCELLED":
+        return "Order cancelled";
+      default:
+        return null;
+    }
+  }
+
+  if (viewRole === "admin" && order.status === "DISPUTED") {
+    return "Next: refund customer or release to store";
+  }
+
+  return null;
+}
+
 export function OrdersList({
   profileId,
   viewRole,
@@ -241,6 +293,7 @@ export function OrdersList({
                 viewRole === "store" &&
                 (order.status === "ADMITTED" ||
                   (order.status === "IN_DELIVERY" && !order.delivery_proof_url));
+              const hint = nextStepHint(order, viewRole);
 
               return (
                 <div
@@ -249,7 +302,10 @@ export function OrdersList({
                 >
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={statusVariant(order.status)}>
+                      <Badge
+                        variant={statusVariant(order.status)}
+                        className="font-mono text-[11px] tracking-wide"
+                      >
                         {order.status}
                       </Badge>
                     </div>
@@ -257,6 +313,11 @@ export function OrdersList({
                       {formatAmount(order.amount, order.currency)} ·{" "}
                       {orderPartiesLabel(order, profileId, viewRole)}
                     </p>
+                    {hint && (
+                      <p className="text-xs font-medium text-foreground/80">
+                        {hint}
+                      </p>
+                    )}
                     <p className="truncate text-xs text-muted-foreground">
                       {order.delivery_address}
                     </p>
@@ -266,15 +327,16 @@ export function OrdersList({
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {viewRole === "customer" && order.status === "PENDING_PAYMENT" && (
-                      <Button
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => payOrder(order.id)}
-                      >
-                        Pay
-                      </Button>
-                    )}
+                    {viewRole === "customer" &&
+                      order.status === "PENDING_PAYMENT" && (
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => payOrder(order.id)}
+                        >
+                          Pay
+                        </Button>
+                      )}
                     {viewRole === "store" && order.status === "PAID" && (
                       <Button
                         size="sm"
@@ -287,7 +349,6 @@ export function OrdersList({
                     {canIssueLink && (
                       <Button
                         size="sm"
-                        variant="secondary"
                         disabled={busy}
                         onClick={() => createDeliveryLink(order.id)}
                       >
@@ -298,7 +359,6 @@ export function OrdersList({
                       <>
                         <Button
                           size="sm"
-                          variant="outline"
                           disabled={busy}
                           onClick={() => resolveDispute(order.id, "refund")}
                         >
@@ -306,6 +366,7 @@ export function OrdersList({
                         </Button>
                         <Button
                           size="sm"
+                          variant="secondary"
                           disabled={busy}
                           onClick={() => resolveDispute(order.id, "release")}
                         >
@@ -316,7 +377,7 @@ export function OrdersList({
                     {canCancel && (
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         disabled={busy}
                         onClick={() => cancelOrder(order.id)}
                       >

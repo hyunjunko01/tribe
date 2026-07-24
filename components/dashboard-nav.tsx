@@ -42,20 +42,24 @@ export function DashboardNav() {
 
   return (
     <nav className="mb-6 flex flex-wrap gap-2 border-b pb-3">
-      {links.map((link) => (
-        <Link
-          key={link.href}
-          href={link.href}
-          className={cn(
-            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            isActive(pathname, link.href, link.exact)
-              ? "bg-muted text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {link.label}
-        </Link>
-      ))}
+      {links.map((link) => {
+        const active = isActive(pathname, link.href, link.exact);
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              active
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            {link.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
